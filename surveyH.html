@@ -1,0 +1,1324 @@
+<!DOCTYPE html> 
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>アンケート</title>
+  <meta name="color-scheme" content="light dark" />
+  <style>
+    /* ==== レイアウトのはみ出し防止（重要） ==== */
+    html { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: inherit; }
+    body { overflow-x: hidden; }
+
+    :root {
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --text: #0f172a;
+      --muted: #64748b;
+      --shadow: 0 10px 30px rgba(0,0,0,.12);
+      --radius: 18px;
+      --maxw: 900px;
+      --star-filled: #fbbc04;
+      --star-empty: #e5e7eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --card-bg: rgba(17, 24, 39, 0.9); --text: #e2e8f0; --muted: #94a3b8; }
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Segoe UI", Meiryo, Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(-45deg, #dbeafe, #e0f2fe, #f0fdfa, #fef9c3);
+      background-size: 400% 400%;
+      animation: bg 20s ease infinite;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    @keyframes bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @media (prefers-reduced-motion: reduce) { body { animation: none; } }
+
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 20px; }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(8px);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    form { display: grid; gap: 22px; }
+    fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
+    legend { font-weight: 700; margin-bottom: 8px; font-size: 16px; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 10px 12px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border: 1px solid #d4d4d8; border-radius: 999px;
+      background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.04);
+      max-width: 100%;
+    }
+/* === ボタン風：中の input は見せず、label(.chip) にスタイルを当てる === */
+.chip {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+/* 中の input は隠す（クリックはラベル全体で受ける） */
+.chip > input[type="checkbox"],
+.chip > input[type="radio"] {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  appearance: none;    /* 既定のUIを確実に消す */
+  opacity: 0;          /* 見えないけど存在はする */
+  pointer-events: auto;/* 端末差を避ける（クリックは受ける） */
+}
+/* 選択状態（:has が使えるブラウザ）— 高級感ブルー */
+/* === Chip 選択時：高級感のある濃い青（ライト）=== */
+label.chip:has(> input:checked),
+label.chip.active {  /* :has 非対応ブラウザは JS で .active を付ける前提 */
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  border-color: #1d4ed8 !important;
+  box-shadow:
+    0 8px 14px rgba(29, 78, 216, .28) !important,
+    0 0 0 2px rgba(59, 130, 246, .38) !important;
+}
+
+/* 触感向上（任意） */
+label.chip:hover {
+  box-shadow:
+    0 10px 18px rgba(29, 78, 216, .30),
+    0 0 0 2px rgba(59, 130, 246, .40);
+}
+
+
+
+/* フォーカス可視化 */
+.chip:has(> input:focus-visible) {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+/* ホバー／フォーカス可視化 */
+.chip:hover { box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+.chip:has(> input:focus-visible) {
+  outline: 2px solid #60a5fa;           /* sky-400 */
+  outline-offset: 3px;
+}
+
+/* 無効（必要な場合） */
+.chip:has(> input[disabled]) {
+  opacity: .6;
+  cursor: not-allowed;
+}
+/* JS フォールバックが付ける .active の見た目 */
+.chip.active {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(99,102,241,.20);
+}
+/* 選択状態（:has が使えるブラウザ）— ダークに映えるブルー */
+.chip:has(> input:checked) {
+  background: linear-gradient(135deg, #0b2a6d 0%, #0f3d91 100%); /* サファイア系 */
+  color: #eaf2ff;                             /* ほんのり明るい白 */
+  border-color: #60a5fa;                      /* sky-400で品よく縁取り */
+  box-shadow:
+    0 0 0 2px rgba(96,165,250,.35),
+    0 8px 16px rgba(2, 6, 23, .6);
+}
+
+/* :has 非対応フォールバック（.active） */
+.chip.active {
+  background: linear-gradient(135deg, #0b2a6d 0%, #0f3d91 100%);
+  color: #eaf2ff;
+  border-color: #60a5fa;
+  box-shadow:
+    0 0 0 2px rgba(96,165,250,.35),
+    0 8px 16px rgba(2, 6, 23, .6);
+}
+
+/* フォーカス（任意） */
+.chip:has(> input:focus-visible) { outline: 2px solid #38bdf8; outline-offset: 3px; }
+
+
+/* :has() 非対応フォールバック（ダーク） */
+.chip.active {
+  background: #0b1220 !important;
+  border-color: #6366f1 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 0 0 2px rgba(99,102,241,.25) !important;
+}
+/* フォーカス可視化（ダーク） */
+.chip:has(> input:focus-visible) {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+}
+
+    textarea, input[type="text"] {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 15px;
+      background: #fff;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    ::placeholder { color: #9ca3af; opacity: 1; }
+
+    .submit-bar { position: sticky; bottom: 0; margin-top: 4px; }
+    .btn,
+    .btn-ghost,
+    .btn-go,
+    #copyBtn {
+      display: inline-flex; justify-content: center; align-items: center; gap: 10px;
+      width: 100%; max-width: 100%;
+      padding: 14px 16px; font-weight: 700; font-size: 16px; border-radius: 14px; border: 0; cursor: pointer;
+    }
+    .btn, .btn-go {
+      color: #fff;
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      box-shadow: 0 8px 14px rgba(15, 118, 110, .22);
+    }
+    .btn-ghost, #copyBtn {
+      background: #eef2ff; color: #0f172a; border: 1px solid #c7d2fe;
+      padding: 12px 14px; border-radius: 12px;
+    }
+    .btn:active, .btn-go:active, .btn-ghost:active, #copyBtn:active { transform: translateY(1px); }
+
+    .view { display: none; }
+    .view.active { display: block; min-width: 0; }
+
+    .result-card { display: grid; gap: 14px; min-width: 0; }
+    .lead { margin-top: 4px; line-height: 1.7; }
+    .lead .spaced { display:block; margin-top: 1em; }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: stretch;
+      min-width: 0;
+    }
+    .divider-arrow { text-align: center; font-size: 22px; opacity: .7; }
+
+    .small { font-size: 12px; color: #64748b; }
+    .summary { background: #ffffff; border: 1px dashed #e5e7eb; border-radius: 12px; padding: 12px; }
+
+    .rating { display: grid; gap: 8px; align-items: center; }
+    .stars { display: inline-flex; gap: 6px; align-items: center; }
+    .star { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 0; cursor: pointer; line-height: 0; }
+    .star svg { width: 28px; height: 28px; fill: var(--star-empty); transition: transform .06s ease, filter .06s ease; filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+    .star.filled svg { fill: var(--star-filled); }
+    .star:hover svg, .star:focus-visible svg { transform: scale(1.08); filter: drop-shadow(0 2px 2px rgba(0,0,0,.08)); outline: none; }
+    .rate-text { min-height: 20px; font-size: 14px; color: var(--muted); }
+    .need { outline: 2px solid #ef4444; outline-offset: 6px; border-radius: 12px; }
+
+    @media (min-width: 720px) {
+      .card { padding: 26px; }
+      legend { font-size: 18px; }
+      .btn, .btn-go { font-size: 18px; }
+      .star svg { width: 30px; height: 30px; }
+    }
+  
+/* === モバイルの口コミ出力枠の初期サイズを最適化 === */
+#reviewOutput{
+  font-size: 16px;
+  line-height: 1.75;
+  min-height: clamp(180px, 36vh, 320px);
+  max-height: 60vh;
+  overflow-y: auto;
+  resize: none;
+  border: 2px solid #94a3b8;
+  border-radius: 12px;
+
+  /* ↓ 追記（編集できる＆扱いやすく） */
+  pointer-events: auto !important;
+  resize: vertical !important;
+  caret-color: #111827;
+}
+/* ライト/ダークの見やすさ調整 */
+@media (prefers-color-scheme: dark){
+  #reviewOutput{
+    color: #111827 !important;
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+}
+
+
+
+/* === 文章生成中オーバーレイ === */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(240, 244, 255, 0.72);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+}
+@media (prefers-color-scheme: dark) {
+  .loading-overlay { background: rgba(2, 6, 23, 0.6); }
+}
+.loading-card {
+  width: min(var(--maxw), 92vw);
+  max-width: 520px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+.loading-title { font-weight: 700; margin-bottom: 10px; font-size: 16px; }
+.progress { height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.progress > .bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0ea5e9, #14b8a6);
+  transition: width .18s ease;
+}
+.loading-sub { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+/* === Q8（理由）を見やすく 2〜4 列のグリッドに === */
+#q5_fieldset .row{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+#q5_fieldset .chip{
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+}
+@media (min-width: 560px){
+  #q5_fieldset .row{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 900px){
+  #q5_fieldset .row{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* === 口コミ案内の中央寄せ＆アクセント === */
+.lead-center { text-align: center; }
+.lead-center .lead-sub { color: var(--muted); }
+.lead-center .lead-em { color: #0891b2; font-weight: 700; }  /* 水色強調 */
+.lead-center .lead-note { color: var(--muted); font-size: 12px; }
+
+/* 余白を少しだけ広げたい場合（任意） */
+.lead.lead-center { margin-top: 6px; line-height: 1.95; }
+ /* === 自由記載欄はチップ化の影響を受けないようにする（常に通常サイズに） === */
+#q1_other, #q2_other, #q5_other, textarea#q9 {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 96px !important;    /* textarea 標準の高さ */
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  padding: 12px 14px !important;
+  border: 1px solid #e5e7eb !important;
+  background: #fff !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+/* もし自由記載の input が label.chip の中に入っていた場合でも、
+   ラベルの“ボタン風”装飾を無効化して通常の入力にする */
+label.chip:has(> input[type="text"]),
+label.chip.active:has(> input[type="text"]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+label.chip:has(> input[type="text"]) > input[type="text"] {
+  position: static !important;
+  opacity: 1 !important;
+}
+
+</style>
+<style>
+/* ===== ダークモード用の上書き（完成版） ===== */
+@media (prefers-color-scheme: dark) {
+  html { color-scheme: dark; }
+  :root { --star-empty: #334155; }
+
+  /* チップの通常状態（ダーク） */
+  .chip {
+    background:#263241 !important;
+    color:#e2e8f0 !important;
+    border-color:#334155 !important;
+    box-shadow:none !important;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+  }
+  /* 中のinputは非表示（ラベル全体がクリック領域） */
+  .chip > input[type="checkbox"],
+  .chip > input[type="radio"] {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    appearance: none;
+    opacity: 0;
+    pointer-events: auto;
+  }
+
+  textarea, input[type="text"] {
+    background:#0f172a !important;
+    color:#e2e8f0 !important;
+    border-color:#334155 !important; }
+  ::placeholder { color:#94a3b8 !important; }
+
+  .btn-ghost, #copyBtn {
+    background:#0b1220 !important;
+    color:#e2e8f0 !important;
+    border-color:#334155 !important;
+  }
+  .summary { background:#0f172a !important; border-color:#334155 !important; }
+  .progress { background:#1f2937 !important; }
+  .small, .rate-text { color:#94a3b8 !important; }
+
+  .lead-center .lead-em   { color:#22d3ee; }
+  .lead-center .lead-note { color:#94a3b8; }
+
+  /* 口コミ枠の枠線を濃く太く */
+  #reviewOutput{
+    border: 2px solid #64748b !important;
+    border-radius: 12px;
+  }
+
+  /* ★ 選択状態：濃い高級感ブルー（:has対応 & フォールバック） */
+  label.chip:has(> input:checked),
+  label.chip.active { /* :has非対応ブラウザはJSで.activeを付与 */
+    background: linear-gradient(135deg, #0b2a6d 0%, #0f3d91 100%) !important;
+    color: #eaf2ff !important;
+    border-color: #60a5fa !important;
+    box-shadow:
+      0 0 0 2px rgba(96,165,250,.35) !important,
+      0 8px 16px rgba(2, 6, 23, .6) !important;
+  }
+
+  /* キーボード操作のフォーカスリング */
+  label.chip:has(> input:focus-visible) {
+    outline: 2px solid #38bdf8 !important;
+    outline-offset: 3px;
+  }
+  /* === Dark：自由記述欄は黒文字＋白背景で固定 === */
+  textarea,
+  input[type="text"] {
+    color: #111827 !important;            /* ほぼ黒 */
+    background: #ffffff !important;       /* 白背景にして見やすく */
+    caret-color: #111827 !important;      /* キャレットも黒に */
+    border-color: #cbd5e1 !important;     /* 見やすい枠線 */
+  }
+
+  /* プレースホルダーも薄いグレーで */
+  ::placeholder {
+    color: #6b7280 !important;
+  }
+
+  /* 個別IDがある自由記述欄（念のため上書き強化） */
+  #q9 {
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+}
+
+}
+</style>
+
+
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+
+      <!-- アンケート画面 -->
+      <section id="view-survey" class="view active" aria-label="アンケート">
+        <form id="surveyForm">
+          <fieldset>
+            <legend>1. 受診の目的・お困りごとを教えてください（複数回答可）</legend>
+            <div class="row">
+              <label class="chip"><input type="checkbox" name="q2" value="不眠">不眠</label>
+              <label class="chip"><input type="checkbox" name="q2" value="不安">不安</label>
+              <label class="chip"><input type="checkbox" name="q2" value="抑うつ">抑うつ</label>
+              <label class="chip"><input type="checkbox" name="q2" value="悩み相談">悩み相談</label>
+              <label class="chip"><input type="checkbox" name="q2" value="休職診断書">休職診断書</label>
+              <label class="chip"><input type="checkbox" name="q2" value="薬の処方">薬の処方</label>
+              <label class="chip"><input type="checkbox" name="q2" value="その他">その他</label>
+            </div>
+           <div class="group" id="q2_other_wrap" style="display:none; margin-top:8px;">
+  <textarea id="q2_other" placeholder="その他（自由記載）"></textarea>
+</div>
+
+          </fieldset>
+
+        <fieldset>
+  <legend>2. 当院を選んだ経緯を教えてください（複数回答可）</legend>
+  <div class="row">
+    <label class="chip"><input type="checkbox" name="q1" value="日吉駅近く">日吉駅近く</label>
+    <label class="chip"><input type="checkbox" name="q1" value="自宅近く">自宅近く</label>
+    <label class="chip"><input type="checkbox" name="q1" value="当日予約">当日予約</label>
+    <!-- 土日診療から土曜診療へ変更 -->
+    <label class="chip"><input type="checkbox" name="q1" value="土曜診療">土曜診療</label>
+    <label class="chip"><input type="checkbox" name="q1" value="他院からの転院">他院からの転院</label>
+    <label class="chip"><input type="checkbox" name="q1" value="その他">その他</label>
+  </div>
+ <div class="group" id="q1_other_wrap" style="display:none; margin-top:8px;">
+  <textarea id="q1_other" placeholder="その他（自由記載）"></textarea>
+</div>
+
+</fieldset>
+
+
+          <fieldset>
+            <legend>3. 担当のお名前を教えてください（1つ選択／選択なし可）</legend>
+            <div class="radio-list" role="radiogroup" aria-label="担当医">
+              <!-- 担当医師の選択肢を更新 -->
+              <label class="chip"><input type="radio" name="q3" value="田村裕介（院長）">田村裕介（院長）</label>
+              <label class="chip"><input type="radio" name="q3" value="山内">山内</label>
+              <label class="chip"><input type="radio" name="q3" value="田村京介（土）">田村京介（土）</label>
+              <label class="chip"><input type="radio" name="q3" value="非常勤">非常勤</label>
+              <label class="chip"><input type="radio" name="q3" value="その他">その他</label>
+            </div>
+          </fieldset>
+<!-- Q3「その他」用 自由記載欄 -->
+<div class="group" id="q3_other_wrap" style="display:none; margin-top:8px;">
+  <input type="text" id="q3_other" placeholder="担当医（自由記載）" />
+</div>
+          <!-- 受診満足度の星評価を非表示にします -->
+          <fieldset id="q4_container" class="rating" style="display:none;">
+  <legend>4. 受診に満足していますか？</legend>
+  <input type="hidden" name="q4" />
+  <div class="stars" id="rate-q4" role="radiogroup" aria-label="受診満足度">
+    <button type="button" class="star" data-value="1" aria-label="1"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+    <button type="button" class="star" data-value="2" aria-label="2"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+    <button type="button" class="star" data-value="3" aria-label="3"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+    <button type="button" class="star" data-value="4" aria-label="4"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+    <button type="button" class="star" data-value="5" aria-label="5"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+  </div>
+  <div class="rate-text" id="q4_label"></div>
+</fieldset>
+
+
+          <fieldset id="q5_fieldset">
+            <legend>5. その理由を教えてください（複数回答可）</legend>
+            <div class="row">
+              <!-- 並べ替え: 質問5の選択肢を見やすくグルーピング -->
+              <!-- よく聞いてくれた／話を聞いてくれない を隣同士に配置 -->
+              <label class="chip"><input type="checkbox" name="q5" value="よく聞いてくれた" data-excludes='["話を聞いてくれない"]'>よく聞いてくれた</label>
+              <label class="chip"><input type="checkbox" name="q5" value="話を聞いてくれない" data-excludes='["よく聞いてくれた"]'>話を聞いてくれない</label>
+              <!-- 待ち時間が短い／待ち時間が長い を隣同士に配置 -->
+              <label class="chip"><input type="checkbox" name="q5" value="待ち時間が短い" data-excludes='["待ち時間が長い"]'>待ち時間が短い</label>
+              <!-- 新しい項目を追加：待ち時間が長い（待ち時間が短いと排他） -->
+              <label class="chip"><input type="checkbox" name="q5" value="待ち時間が長い" data-excludes='["待ち時間が短い"]'>待ち時間が長い</label>
+              <!-- 以下はその他の選択肢 -->
+              <label class="chip"><input type="checkbox" name="q5" value="WEB予約が便利">WEB予約が便利</label>
+              <label class="chip"><input type="checkbox" name="q5" value="WEB問診が便利">WEB問診が便利</label>
+              <label class="chip"><input type="checkbox" name="q5" value="診断書発行が円滑">診断書発行が円滑</label>
+              <label class="chip"><input type="checkbox" name="q5" value="薬の処方">薬の処方</label>
+              <label class="chip"><input type="checkbox" name="q5" value="キャッシュレス決済">キャッシュレス決済</label>
+              <label class="chip"><input type="checkbox" name="q5" value="日吉駅近く">日吉駅近く</label>
+              <label class="chip"><input type="checkbox" name="q5" value="その他">その他</label>
+            </div>
+            <div class="group" id="q5_other_wrap" style="display:none; margin-top:8px;">
+  <textarea id="q5_other" placeholder="その他（自由記載）"></textarea>
+</div>
+
+</fieldset>
+<fieldset id="q10_container">
+  <legend>6. 通院してからどのくらい経過していますか？（1つ選択）</legend>
+  <div class="radio-list" role="radiogroup" aria-label="通院期間">
+    <label class="chip"><input type="radio" name="q10" value="初めて">初めて</label>
+    <label class="chip"><input type="radio" name="q10" value="３カ月未満">３カ月未満</label>
+    <label class="chip"><input type="radio" name="q10" value="半年未満">半年未満</label>
+    <label class="chip"><input type="radio" name="q10" value="１年未満">１年未満</label>
+    <label class="chip"><input type="radio" name="q10" value="数年">数年</label>
+    <label class="chip"><input type="radio" name="q10" value="１０年以上">１０年以上</label>
+  </div>
+</fieldset>
+          <fieldset>
+            <legend>7. その他、何かありましたらご記載ください。（自由回答）</legend>
+            <textarea id="q9" placeholder="例）診察や受付の印象、通いやすさ、予約や会計の使い勝手など、自由にお書きください"></textarea>
+          </fieldset>
+
+          <div class="submit-bar">
+            <button class="btn" type="submit" aria-label="送信">【送信】</button>
+          </div>
+        </form>
+      </section>
+
+     <!-- 高評価（>=4.0） -->
+<section id="view-positive" class="view" aria-label="（内部ラベル）">
+  <div class="result-card">
+    <!-- ポジティブ結果ページの案内文 -->
+    <p class="lead lead-center">
+      <span class="lead-sub">ご回答内容を AI で文章化しました。</span><br>
+      <span class="lead-sub">画面下のボタンからコピーして、投稿にご利用できます。</span><br>
+      <span class="lead-em">口コミ投稿にご使用下さい。</span><br>
+      <!-- スタッフへの激励メッセージを追加 -->
+      <span class="lead-em">皆様の温かいお言葉がスタッフの励みになります ♪</span><br>
+      <span class="lead-note">※ AI 文の使用・編集は任意です。</span>
+    </p>
+   <textarea id="reviewOutput"></textarea>
+
+
+        <div class="actions">
+  <!-- コピーだけ（上） -->
+  <button class="btn-ghost" id="copyBtn" type="button">
+    上記の内容をコピーする
+  </button>
+
+  <!-- ↓ 区切り -->
+  <div class="divider-arrow" aria-hidden="true">↓</div>
+
+  <!-- 投稿ページだけ開く（下） -->
+  <button class="btn-go" id="openBtn" type="button">
+    Googleの口コミ投稿ページを開く
+  </button>
+
+  <!-- 互換用リンクはそのまま残す -->
+  <a id="googleLink" href="#" style="display:none" aria-hidden="true" tabindex="-1"></a>
+</div>
+
+          <details class="summary" hidden>
+            <summary>入力内容のサマリー（開く）</summary>
+            <div id="answerSummary" class="small"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- 低評価（<4.0） -->
+      <!-- 低評価用ページ（★3以下）を非表示にします -->
+      <section id="view-thanks" class="view" aria-label="（内部ラベル）" style="display:none;">
+        <div class="result-card">
+          <h2 style="margin:0; font-size:20px;">アンケートへのご協力、ありがとうございました。</h2>
+          <p>いただいたご意見は院内で共有し、よりご満足いただけるよう改善に活かしてまいります。</p>
+          <button class="btn-ghost" type="button" id="backBtn">画面を閉じる</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+// ==== AIプロンプト（動的生成）====
+  function computePeriodPhrase(ans) {
+  switch (ans.q10) {
+    case "初めて":     return "今回は初診でした。";
+    case "３カ月未満": return "通い始めてまだ数か月です。";
+    case "半年未満":   return "通い始めて半年程度です。";
+    case "１年未満":   return "通い始めて1年弱です。";
+    case "数年":       return "数年通っています。";
+    case "１０年以上": return "通院して10年以上になります。";
+    default:           return "";
+  }
+}
+// === SEO/MEO キーワード抽出＆ランダム順化 ===
+function getSeoTerms(ans) {
+  // 使いたい固定キーワード（必要に応じて増減可）
+  // 使いたい固定キーワード（必要に応じて増減可）
+  // 「武蔵小杉」から「日吉」へ変更
+  const CANDIDATES = ["日吉","休職診断書","精神科","心療内科","メンタルクリニック"];
+
+  // 回答の中に出ている語を優先して採用（出ていなくても常に使いたいなら CANDIDATES をそのまま返す運用でも可）
+  const haystack = [
+    ...(ans.q1 || []),
+    ...(ans.q2 || []),
+    ans.q3 || "",
+    ans.q9 || "",
+  ].join(" ");
+
+  const found = CANDIDATES.filter(k => haystack.includes(k));
+
+  // 何もヒットしなかったら「優先 0 件」でも OK。常に掲載したいなら fallback:
+  // const found = CANDIDATES.slice();
+
+  // フィッシャー–イェーツで順番シャッフル
+  for (let i = found.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [found[i], found[j]] = [found[j], found[i]];
+  }
+  return found;
+}
+function getDoctorName(ans){
+  /*
+    医師名の記載ルール：
+    - フルネームは使用せず、苗字＋先生とする（山内→山内先生など）
+    - 「非常勤」は「非常勤の先生」とする
+    - 自由記入や未選択の場合は「担当の先生」とする
+  */
+  const val = ans && ans.q3 ? ans.q3.trim() : "";
+  // 非常勤はそのまま表記する
+  if (val === "非常勤") {
+    return "非常勤の先生";
+  }
+  // 選択なしやその他→担当の先生
+  if (!val || val === "その他") {
+    return "担当の先生";
+  }
+  // 一覧にあるフルネームを苗字だけに変換
+  const surnameMap = {
+    "田村裕介（院長）": "田村",
+    "田村京介（土）": "田村",
+    "山内": "山内"
+  };
+  if (surnameMap[val]) {
+    return `${surnameMap[val]}先生`;
+  }
+  // 自由記入の場合: ans.q3_other
+  if (val === "その他" && ans.q3_other && ans.q3_other.trim()) {
+    // 括弧内の注釈を除去し、空白区切りの先頭を苗字とみなす
+    const free = ans.q3_other.trim().replace(/[（(][^）)]*[）)]/g, "").split(/[\s　]+/)[0];
+    return free ? `${free}先生` : "担当の先生";
+  }
+  // それ以外は苗字+先生にする（最初の1〜2文字）
+  // 可能性として val が単独の苗字である場合
+  return `${val}先生`;
+}
+  function buildSystemPrompt(ans) {
+  const doctor = getDoctorName(ans);
+  const clinic = (typeof appConfig !== "undefined" && appConfig.clinicName) ? appConfig.clinicName : "当院";
+  const periodPhrase = computePeriodPhrase(ans);
+  const seoTerms = getSeoTerms(ans); // ★追加
+  const seoRule = seoTerms.length
+    ? `- 次の語句は**表記を変えず**、不自然にならない位置に各1回程度入れる（順序は入れ替えてよい）：${seoTerms.join("、")}`
+    : "";
+
+  return `あなたは医療機関のアンケート回答を自然な日本語の口コミ文に整えるアシスタントです。\n- 事実ベースで誇張しない\n- 一人称で丁寧な口調\n- 1〜2段落で、全体はおよそ100-150字前後（改行は自然に）\n- 絵文字・機種依存文字は使わない\n- 構成は時系列（受診のきっかけ→探した経緯→選んだ理由→診察の様子→良かった点→総合コメント）\n- 一文目は「◯◯が続いたため◯◯を探し、${clinic}を受診しました。」の形で、必ずクリニック名「${clinic}」を含める\n- 「症状が出てから／発症から」など**発症起点の期間表現は書かない**（期間は必ず通院開始起点）\n- 医師の表記は：${doctor === "担当の先生" ? "氏名が不明なので「担当の先生」を用いる" : `本文中に一度は医師名「${doctor}」を明記する`}\n${periodPhrase ? `- 通院期間は次の文面を本文に必ず一度含める：「${periodPhrase}」` : ""}\n${seoRule}\n- 「良かった点」（q5）は不自然にならない範囲で反映する\n- 固有名詞は上記の${clinic}${doctor === "担当の先生" ? "" : `と${doctor}`}以外は原則出さない`;
+}
+
+
+
+// ==== 接続先（絶対URLで）====
+const appConfig = {
+  // クリニック名を「心のクリニック日吉」に変更
+  clinicName: "心のクリニック日吉",
+
+  googleReviewUrl: "https://g.page/r/CZZ6G6Jhb7YZEBM/review",
+  ai: { mode: "endpoint", endpoint: "https://clinic-review.onrender.com/api/review", headers: {} }
+};
+
+// ==== file:// の時だけ mock。その他は必ず endpoint ====
+(() => {
+  const isLocal = location.protocol === "file:";
+  appConfig.ai.mode = isLocal ? "mock" : "endpoint";
+})();
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const sanitizeInline = (text) => { if (!text) return ""; return String(text).replace(/[\n\r]+/g, "、").replace(/[<>]/g, "").trim(); };
+const average = (nums) => nums.reduce((a,b)=>a+b,0)/nums.length;
+const getCheckedValues = (name) => $$('input[name="'+name+'"]:checked').map(el=>el.value);
+const listJa = (arr) => !arr || !arr.length ? "" : (arr.length === 1 ? arr[0] : arr.slice(0,-1).join("、") + "、" + arr[arr.length-1]);
+const toggle = (el, show) => { if (el) el.style.display = show ? "" : "none"; };
+
+function filterPositives(items) {
+  const positives = new Set([
+    "よく聞いてくれた","待ち時間が短い",
+    "WEB予約が便利","WEB問診が便利","診断書発行が円滑",
+    "薬の処方","キャッシュレス決済","日吉駅近く",
+    // 旧表記（後方互換）
+    "話しやすかった","話しを良く聞いてくれた","説明が丁寧だった","待ち時間が短かった",
+    "WEB予約が便利だった","WEB問診票が便利だった","診断書発行の対応がスムーズだった",
+    "薬の処方を貰えた","キャッシュレス決済が出来た","駅が近くで通院しやすい"
+  ]);
+  return (items||[]).filter(x => positives.has(x));
+}
+
+function enforceLength(text, ans) {
+  if (text == null) return text;
+
+  // 改行は残しつつ、連続スペースだけ整形
+  let t = String(text)
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // ★目標レンジ
+  // AI生成文は100-150字程度に調整する
+  const MIN = 100;
+  const MAX = 150;
+
+  const expandMap = {
+    "よく聞いてくれた": "落ち着いて話せる雰囲気で、こちらのペースに合わせて進めてくださいました。些細な不安にも耳を傾けてくれて、納得いくまで相談できました。",
+    "待ち時間が短い": "案内がスムーズで、待ち時間が短かったです。",
+    "WEB予約が便利": "WEB予約による手続きが簡単で、都合に合わせて受診しやすかったです。",
+    "WEB問診が便利": "WEB問診での事前入力で当日の流れがスムーズになりました。",
+    "診断書発行が円滑": "診断書などの書類の手続きも滞りなく対応いただけました。",
+    "薬の処方": "必要に応じた処方の説明もあり、受診後の流れが明確になりました。",
+    "キャッシュレス決済": "キャッシュレス決済が使用でき、会計がスピーディーで手間がかかりませんでした。",
+    "日吉駅近く": "日吉駅が近いので、継続通院もしやすいと感じます。",
+    
+  };
+
+  const plainLen = t.replace(/\n/g, "").length;
+
+  // 300字を超えていたら、文末の「。」でなるべべくきれいに切る
+  if (plainLen > MAX) {
+    let cut = t.replace(/\n/g, "");
+    if (cut.length > MAX) cut = cut.slice(0, MAX);
+    const lastPeriod = cut.lastIndexOf("。");
+    if (lastPeriod >= 0 && lastPeriod > MIN / 2) cut = cut.slice(0, lastPeriod + 1);
+    t = cut.endsWith("。") ? cut : (cut + "。");
+    return t;
+  }
+
+  // 200字未満なら自然にボリュームを足す
+  if (plainLen < MIN && ans) {
+    // Q5（良かった点）から追加
+    const reasons = (ans.q5 || []).filter(x => Object.prototype.hasOwnProperty.call(expandMap, x));
+    for (const r of reasons) {
+      if (t.replace(/\n/g, "").length >= MIN) break;
+      const add = expandMap[r];
+      if (add && !t.includes(add)) t += (t.endsWith("。") ? "" : "。") + add;
+    }
+
+    // （任意）通院期間の一文が使えるなら追加
+    if (typeof computePeriodPhrase === "function") {
+      const period = computePeriodPhrase(ans);
+      if (period && !t.includes(period) && t.replace(/\n/g, "").length < MIN) {
+        t += (t.endsWith("。") ? "" : "。") + period;
+      }
+    }
+
+    // まだ足りなければ汎用クロージング
+    const filler = "全体として落ち着いて受診でき、今後も安心して通えそうだと感じました。";
+    if (t.replace(/\n/g, "").length < MIN && !t.includes(filler)) {
+      t += (t.endsWith("。") ? "" : "。") + filler;
+    }
+  }
+
+  return t;
+}
+
+
+function generateReviewLocally(ans) {
+  const deptList = ["精神科","心療内科","メンタルクリニック"];
+  const dept = deptList[Math.floor(Math.random() * deptList.length)];
+
+  const motive = (ans.q2 && ans.q2.length)
+    ? `「${listJa(ans.q2)}」が続いたため`
+    : "心身の不調が続いたため";
+
+  const chooseMap = {
+    "日吉駅近く": "日吉駅から近かったこと",
+    "当日予約": "当日予約ができたこと",
+    // 土日診療ではなく土曜診療に変更
+    "土曜診療": "土曜も診療していること",
+    "自宅近く": "自宅から近かったこと",
+    "他院からの転院": "他院から転院をして"
+  };
+  const chosen = (ans.q1 || []).map(v => chooseMap[v] || v);
+  let chooseText = "";
+  if (chosen.length) {
+    const move = chosen.filter(s => s.includes("転居"));
+    const other = chosen.filter(s => !s.includes("転居"));
+    if (move.length)  chooseText += `${listJa(move)}、`;
+    if (other.length) chooseText += `${listJa(other)}が決め手となり、`;
+  }
+
+  // 担当医師名リスト（院長・山内・土曜担当・非常勤）
+  // 医師名をルールに基づいて取得（苗字+先生／非常勤の先生／担当の先生）
+  const doctor = getDoctorName(ans);
+
+  const good = filterPositives(ans.q5);
+  const goodLine = good.length ? `特に「${listJa(good.slice(0,3))}」と感じました。` : "";
+
+  const extra = sanitizeInline(ans.q9);
+  const closing = "予約から会計までの流れもスムーズで、安心して通えそうです。";
+
+  const endingsRaw = [
+    "こちらを受診しました","コチラを受診しました",
+    "心のクリニックを受診しました","心のクリニック日吉を受診しました。"
+  ];
+  const endings = endingsRaw.map(s => s.replace(/[。．.]+$/u, ""));
+  const ending = endings[Math.floor(Math.random() * endings.length)];
+
+  const periodPhrase = computePeriodPhrase(ans);
+  const seoTerms = getSeoTerms(ans); // ★SEO語
+  const seoPhrase = seoTerms.length
+    // 語形を変えず “・” で自然に連結して文中へ
+    ? `${seoTerms.join("・")} を中心に情報を探し、`
+    : "";
+
+  const lines = [];
+  // 1段落目：SEO語を自然に含める（語は原文どおり）
+  let first = `${motive}、${seoPhrase}${dept}を探し、${chooseText}${ending}。`;
+  if (periodPhrase) first += " " + periodPhrase;
+  lines.push(first);
+
+  // 2段落以降
+  lines.push(`診察では${doctor}が話をよく聞いてくださり、状態や今後の方針も分かりやすく説明してくださいました。`);
+  if (goodLine) lines.push(goodLine);
+  lines.push(extra || closing);
+  lines.push("同じようなお悩みの方にも勧めたいと思います。");
+
+  return lines.join("\n");
+}
+
+
+
+async function generateReviewWithEndpoint(ans) {
+  try {
+    const res = await fetch(appConfig.ai.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...appConfig.ai.headers },
+      body: JSON.stringify({ answers: ans, systemPrompt: buildSystemPrompt(ans) })
+    });
+    if (!res.ok) throw new Error("bad status " + res.status);
+    const data = await res.json();
+    if (data && data.review) return data.review;
+    return generateReviewLocally(ans);
+  } catch (e) {
+    console.warn("AIエンドポイント呼出エラー", e);
+    return generateReviewLocally(ans);
+  }
+}
+
+async function generateReview(ans) {
+  if (appConfig.ai.mode === "endpoint" && appConfig.ai.endpoint) return generateReviewWithEndpoint(ans);
+  return generateReviewLocally(ans);
+}
+
+const _labelMap = {
+  q4: {1:"とても良くなかった",2:"良くなかった",3:"普通",4:"良かった",5:"とても良かった"},
+  q6: {1:"とても良くなかった",2:"良くなかった",3:"普通",4:"良かった",5:"とても良かった"},
+  q7: {1:"とても良くなかった",2:"良くなかった",3:"普通",4:"良かった",5:"とても良かった"},
+  q8: {1:"絶対勧めない",2:"勧めない",3:"普通",4:"勧める",5:"強く勧める"},
+};
+
+function setupRater(containerId, inputName, labelId) {
+  const root = document.getElementById(containerId);
+  const hidden = root.querySelector(`input[name="${inputName}"]`);
+  const stars = Array.from(root.querySelectorAll(".star"));
+  const label = document.getElementById(labelId);
+  let value = Number(hidden.value || 0);
+
+  const apply = (v) => {
+    stars.forEach((s, i) => s.classList.toggle("filled", i < v));
+    hidden.value = v ? String(v) : "";
+    label.textContent = v ? `${"★★★★★".slice(0, v)}${"☆☆☆☆☆".slice(v)}　${_labelMap[inputName][v]}` : "";
+  };
+
+  apply(value);
+
+  stars.forEach(btn => {
+    btn.addEventListener("mouseenter", () => {
+      const v = Number(btn.dataset.value);
+      stars.forEach((s, i) => s.classList.toggle("filled", i < v));
+      label.textContent = `${"★★★★★".slice(0, v)}${"☆☆☆☆☆".slice(v)}　${_labelMap[inputName][v]}`;
+    });
+    btn.addEventListener("mouseleave", () => apply(Number(hidden.value || 0)));
+    btn.addEventListener("click", () => { value = Number(btn.dataset.value); apply(value); });
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); value = Math.min(5, Number(hidden.value||0) + 1); apply(value); }
+      if (e.key === "ArrowLeft"  || e.key === "ArrowDown") { e.preventDefault(); value = Math.max(1, Number(hidden.value||0) - 1); apply(value); }
+    });
+  });
+}
+
+function getRating(name) { return Number(document.querySelector(`input[name="${name}"]`)?.value || 0); }
+
+function collectAnswers(form) {
+  const q1 = getCheckedValues("q1");
+  if (q1.includes("その他")) {
+    const t = sanitizeInline(document.getElementById("q1_other").value);
+    if (t) q1[q1.indexOf("その他")] = t; else q1.splice(q1.indexOf("その他"),1);
+  }
+
+  const q2 = getCheckedValues("q2");
+  if (q2.includes("その他")) {
+    const t = sanitizeInline(document.getElementById("q2_other").value);
+    if (t) q2[q2.indexOf("その他")] = t; else q2.splice(q2.indexOf("その他"),1);
+  }
+
+  // ★ Q3：その他なら自由記載を採用
+  let q3 = document.querySelector("input[name='q3']:checked")?.value || "";
+  if (q3 === "その他") {
+    const t = sanitizeInline(document.getElementById("q3_other").value);
+    q3 = t || ""; // 空なら空文字に
+  }
+
+  const q5 = getCheckedValues("q5");
+  if (q5.includes("その他")) {
+    const t = sanitizeInline(document.getElementById("q5_other").value);
+    if (t) q5[q5.indexOf("その他")] = t; else q5.splice(q5.indexOf("その他"),1);
+  }
+
+  return {
+    q1, q2, q3,                         // ← ここで q3 は自由記載に置き換わっている
+    q4: getRating("q4"),
+    q5,
+    q6: getRating("q6"),
+    q7: getRating("q7"),
+    q8: getRating("q8"),
+    q10: document.querySelector("input[name='q10']:checked")?.value || "",
+    q9: document.getElementById("q9").value.trim()
+  };
+}
+
+
+function renderSummary(ans) {
+  const lines = [];
+  lines.push(`満足度(Q4): ${ans.q4} / 5`);
+  lines.push(`受診の目的/お困りごと: ${ans.q2?.length ? listJa(ans.q2) : "—"}`);
+  lines.push(`選んだ経緯: ${ans.q1?.length ? listJa(ans.q1) : "—"}`);
+  lines.push(`担当医: ${ans.q3 || "—"}`);
+  lines.push(`通院期間(Q6): ${ans.q10 || "—"}`);   // 画面上は6番に繰り上げ
+  lines.push(`理由(Q5): ${ans.q5?.length ? listJa(ans.q5) : "—"}`);
+  if (ans.q9) lines.push(`自由記述(Q7): ${ans.q9}`);
+  document.getElementById("answerSummary").textContent = lines.join("\n");
+}
+
+
+function showView(id) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  try { history.pushState({view: id}, "", "#"+id); } catch {}
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateGoogleLink() {
+  const a = document.getElementById("googleLink");
+  if (a) a.href = appConfig.googleReviewUrl || "https://maps.google.com/";
+}
+
+function autosizeTextarea(ta) {
+  if (!ta) return;
+  const max = Math.round(window.innerHeight * 0.60); // 上限: 60vh
+  const min = Math.round(window.innerHeight * 0.36); // 下限: 36vh
+  ta.style.height = "auto";
+  const next = Math.max(min, Math.min(max, ta.scrollHeight));
+  ta.style.height = next + "px";
+}
+
+function validateRatings() {
+  // 星評価を利用しないためチェック対象を空に
+  const req = [];
+  for (const name of req) {
+    const v = getRating(name);
+    if (!v) {
+      const cont = document.getElementById(name + "_container");
+      cont.classList.add("need");
+      cont.scrollIntoView({behavior:"smooth", block:"center"});
+      setTimeout(()=>cont.classList.remove("need"), 1500);
+      alert("未選択の項目があります。星をタップして選択してください。");
+      return false;
+    }
+  }
+  return true;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  window.addEventListener("resize", () => autosizeTextarea(document.getElementById("reviewOutput")));
+  const bindOther = (name, wrapId) => {
+    document.querySelectorAll(`input[name='${name}']`).forEach(el => {
+      el.addEventListener("change", () => {
+        const checked = getCheckedValues(name).includes("その他");
+        toggle(document.getElementById(wrapId), checked);
+      });
+    });
+  };
+  const bindRadioOther = (name, wrapId) => {
+    const wrap = document.getElementById(wrapId);
+    const update = () => {
+      const v = document.querySelector(`input[name='${name}']:checked`)?.value || "";
+      if (wrap) wrap.style.display = (v === "その他") ? "" : "none";
+    };
+    // 初期状態反映＋変更監視
+    document.querySelectorAll(`input[name='${name}']`).forEach(el => {
+      el.addEventListener("change", update);
+    });
+    update();
+  };
+  bindOther("q1","q1_other_wrap");
+  bindOther("q2","q2_other_wrap");
+  bindOther("q5","q5_other_wrap");
+    bindRadioOther("q3","q3_other_wrap");
+
+
+ // 見た目（.active）をチェック状態と同期するヘルパー
+function setActiveFromChecked(inp){
+  const lab = inp.closest('label.chip');
+  if (lab) lab.classList.toggle('active', inp.checked);
+}
+
+// data-excludes を使った排他制御（見た目も同期）
+document.querySelectorAll("input[type='checkbox'][data-excludes]").forEach(cb => {
+  cb.addEventListener("change", (e) => {
+    const me = e.target;
+    const groupName = me.name;
+
+    // 自分の見た目をまず同期
+    setActiveFromChecked(me);
+
+    // 自分がONになったときだけ相手を外す（OFF時は何もしない）
+    if (me.checked) {
+      // ① 自分が data-excludes に挙げている相手を外す
+      const excludes = JSON.parse(me.getAttribute("data-excludes") || "[]");
+      excludes.forEach(val => {
+        document
+          .querySelectorAll(`input[type='checkbox'][name='${groupName}'][value='${val}']`)
+          .forEach(x => { x.checked = false; setActiveFromChecked(x); });
+      });
+
+      // ② 逆方向（相手の data-excludes に自分が含まれている場合）も外す
+      document
+        .querySelectorAll(`input[type='checkbox'][name='${groupName}'][data-excludes]`)
+        .forEach(other => {
+          if (other === me) return;
+          const ex = JSON.parse(other.getAttribute("data-excludes") || "[]");
+          if (ex.includes(me.value)) { other.checked = false; setActiveFromChecked(other); }
+        });
+    }
+  });
+});
+
+
+  setupRater("q4_container", "q4", "q4_label");
+ // === 選択チップの見た目同期（:has の有無に関係なく常に .active を同期）===
+(function () {
+  const syncGroup = (name) => {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(x => {
+      const lab = x.closest('label.chip');
+      if (lab) lab.classList.toggle('active', x.checked);
+    });
+  };
+
+  document.querySelectorAll('label.chip > input').forEach(inp => {
+    const lab = inp.closest('label.chip');
+
+    // 初期状態を反映
+    if (lab) lab.classList.toggle('active', inp.checked);
+
+    // 変更されたら同期
+    inp.addEventListener('change', () => {
+      if (inp.type === 'radio') {
+        // ラジオは同名グループ全体を同期
+        syncGroup(inp.name);
+      } else {
+        // チェックボックスは自分だけ
+        if (lab) lab.classList.toggle('active', inp.checked);
+      }
+    });
+  });
+})();
+
+
+
+  document.getElementById("surveyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!validateRatings()) return;
+
+    const ans = collectAnswers(e.currentTarget);
+    renderSummary(ans);
+
+    try {
+      // 星評価に関係なく常にポジティブページに遷移する
+      if (true) {
+       let review = await (async () => {
+  if (appConfig.ai && appConfig.ai.mode === "endpoint" && appConfig.ai.endpoint) {
+    try {
+      const res = await fetch(appConfig.ai.endpoint, {
+        method: "POST", headers: { "Content-Type": "application/json", ...(appConfig.ai.headers||{}) },
+        body: JSON.stringify({ answers: ans, systemPrompt: buildSystemPrompt(ans) })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.review) return data.review;
+      }
+    } catch {}
+  }
+  return generateReviewLocally(ans);
+})();
+
+    
+        review = enforceLength(review, ans);
+       const out = document.getElementById("reviewOutput");
+
+// AIの文章をセット
+out.value = review;
+
+out.readOnly = false;
+out.removeAttribute("readonly");
+out.disabled = false;
+out.style.pointerEvents = "auto";
+out.style.caretColor = "#111827"; // カーソル見やすく
+if (typeof hideLoading === "function") hideLoading(); // 念のためオーバーレイを確実に消す
+
+updateGoogleLink();
+showView("view-positive");
+
+// 高さ調整 & フォーカス
+if (typeof autosizeTextarea === "function") autosizeTextarea(out);
+out.focus();
+
+      } else {
+        // 本来は低評価で遷移する処理だが、星評価を使わないため非表示とする
+        showView("view-positive");
+      }
+    } catch (err) {
+      console.error(err);
+      showView("view-thanks");
+    }
+  });
+
+  // 投稿ページだけ開く
+  document.getElementById("openBtn").addEventListener("click", () => {
+    const url = appConfig.googleReviewUrl || "https://maps.google.com/";
+    const w = window.open(url, "_blank", "noopener");
+    if (!w) location.href = url; // ポップアップブロック時フォールバック
+  });
+
+  // コピーだけ
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("reviewOutput").value);
+      alert("投稿案をコピーしました。Googleの画面で貼り付けてご利用ください。");
+    } catch {
+      const ta = document.getElementById("reviewOutput");
+      ta.select(); document.execCommand("copy");
+      alert("投稿案をコピーしました。Googleの画面で貼り付けてご利用ください。");
+    }
+  });
+
+  document.getElementById("backBtn")?.addEventListener("click", () => {
+    try { window.open("", "_self"); } catch {}
+    try { window.close(); } catch {}
+    setTimeout(() => { try { location.href = "about:blank"; } catch {} }, 80);
+  });
+
+  if (location.hash === "#view-positive") { showView("view-positive"); autosizeTextarea(document.getElementById("reviewOutput")); }
+  if (location.hash === "#view-thanks") showView("view-thanks");
+});
+</script>
+
+  <!-- === AI文章生成中の表示（オーバーレイ） === -->
+  <div id="loadingOverlay" class="loading-overlay" role="dialog" aria-modal="true" aria-labelledby="loadingTitle" aria-live="polite">
+    <div class="loading-card">
+      <div id="loadingTitle" class="loading-title">アンケート結果を送信中…</div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="loadingBar" class="bar"></div>
+      </div>
+      <div class="loading-sub">
+        <span id="loadingNote">通常10秒ほどかかります。このままお待ちください。</span>
+        <span id="loadingPct">0%</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+// === ローディング制御（30秒で100%想定：90%まで線形→微進行） ===
+(function() {
+  let timer = null;   // 0〜90% を進める用
+  let drift = null;   // 90%以降の微進行用
+  let progress = 0;
+
+  // ★調整用パラメータ
+  const EXPECTED_MS    = 11111; // 理想的に100%に達する時間（30秒）
+  const HOLD_AT        = 90;    // ここまでは線形で進める
+  const DRIFT_MAX      = 97;    // 長引いた場合の上限（止めたいなら 90）
+  const DRIFT_STEP     = 1;     // 微進行の刻み（%）
+  const DRIFT_INTERVAL = 900;   // 微進行の間隔（ms）
+
+  const overlay = () => document.getElementById("loadingOverlay");
+  const bar     = () => document.getElementById("loadingBar");
+  const pct     = () => document.getElementById("loadingPct");
+  const progEl  = () => document.querySelector(".progress");
+
+  function updateAria(now){
+    try { const p = progEl(); if (p) p.setAttribute("aria-valuenow", String(now)); } catch {}
+  }
+  function setProgress(v){
+    progress = Math.max(0, Math.min(100, Math.round(v)));
+    const b = bar(); if (!b) return;
+    b.style.width = progress + "%";
+    pct().textContent = progress + "%";
+    updateAria(progress);
+  }
+
+  window.showLoading = function() {
+    const ov = overlay(); if (!ov) return;
+
+    // リセット
+    try { if (timer) clearInterval(timer); } catch {}
+    try { if (drift) clearInterval(drift); } catch {}
+    timer = drift = null;
+    setProgress(0);
+
+    ov.style.display = "flex";
+    document.body.setAttribute("aria-busy", "true");
+    document.body.style.pointerEvents = "none";
+    document.body.style.touchAction = "none";
+
+    const start = performance.now();
+
+    // 30秒で100%に到達する直線ペース。ただし90%でいったん停止。
+    timer = setInterval(() => {
+      const elapsedMs = performance.now() - start;
+      const ideal = (elapsedMs / EXPECTED_MS) * 100;         // 線形
+      const target = Math.min(HOLD_AT, Math.floor(ideal));   // 最大90%
+
+      if (target > progress) setProgress(target);
+
+      // 90%に到達したら、必要に応じてゆっくり微進行
+      if (progress >= HOLD_AT && !drift) {
+        clearInterval(timer); timer = null;
+        drift = setInterval(() => {
+          if (progress < DRIFT_MAX) setProgress(progress + DRIFT_STEP);
+        }, DRIFT_INTERVAL);
+      }
+    }, 120);
+  };
+
+  window.hideLoading = function() {
+    const ov = overlay(); if (!ov) return;
+    try { if (timer) clearInterval(timer); } catch {}
+    try { if (drift) clearInterval(drift); } catch {}
+    timer = drift = null;
+
+    setProgress(100); // 完了時は一気に100%
+    setTimeout(() => {
+      ov.style.display = "none";
+      document.body.removeAttribute("aria-busy");
+      document.body.style.pointerEvents = "";
+      document.body.style.touchAction = "";
+      setProgress(0); // 次回のためにリセット
+    }, 220);
+  };
+
+  // === fetch フック：AIエンドポイントPOST時だけ表示 ===
+  const _fetch = window.fetch.bind(window);
+  window.fetch = async function(input, init) {
+    const url = (typeof input === "string") ? input : (input && input.url) || "";
+    const method = (init && (init.method || init?.options?.method) || "GET").toUpperCase();
+    const isTarget = (typeof appConfig !== "undefined")
+      && appConfig?.ai?.mode === "endpoint"
+      && !!appConfig?.ai?.endpoint
+      && url === appConfig.ai.endpoint
+      && method === "POST";
+
+    if (!isTarget) return _fetch(input, init);
+
+    try {
+      window.showLoading();
+      const res = await _fetch(input, init);
+      return res;
+    } finally {
+      window.hideLoading();
+    }
+  };
+})();
+</script>
+
+</body>
+
+</html>
